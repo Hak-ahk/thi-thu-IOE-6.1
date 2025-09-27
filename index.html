@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bài Thi Thử IOE Lớp 6 Tương Tác</title>
+    <!-- Tải Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Cấu hình Font và Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#4f46e5',
+                        'primary-dark': '#4338ca',
+                        'success': '#10b981',
+                        'error': '#ef4444',
+                        'info': '#3b82f6',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Tùy chỉnh nút */
+        .btn {
+            @apply px-4 py-2 font-semibold text-white transition duration-200 ease-in-out rounded-xl shadow-lg hover:shadow-xl;
+        }
+
+        .btn-primary {
+            @apply bg-primary hover:bg-primary-dark;
+        }
+
+        .btn-success {
+            @apply bg-success hover:bg-emerald-600;
+        }
+
+        .btn-error {
+            @apply bg-error hover:bg-red-600;
+        }
+
+        /* Hiệu ứng pháo hoa */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Lớp ẩn gợi ý mặc định */
+        #hint-text {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        /* Lớp hiển thị gợi ý khi giữ nút */
+        .show-hint #hint-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Toast Notification */
+        #toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 10000;
+            max-width: 90vw;
+            pointer-events: none;
+        }
+        .toast {
+            @apply p-4 rounded-xl shadow-2xl mb-3 transform transition-all duration-300 ease-out;
+            opacity: 0;
+            transform: translateY(-20px);
+            pointer-events: auto;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- Khung chứa ứng dụng chính -->
+    <div id="app" class="min-h-screen flex flex-col items-center p-4">
+        
+        <!-- Màn hình chào mừng/Đăng nhập -->
+        <div id="start-screen" class="w-full max-w-lg p-8 bg-white rounded-2xl shadow-2xl transition duration-500">
+            <h1 class="text-3xl font-extrabold text-primary mb-4 text-center">Bài Thi Thử IOE 6</h1>
+            <p class="text-gray-600 text-center mb-6">Nhập tên của bạn để bắt đầu luyện tập (tổng 117 câu).</p>
+            
+            <input type="text" id="player-name-input" placeholder="Tên của bạn..." 
+                   class="w-full px-4 py-3 mb-6 border border-gray-300 rounded-xl focus:ring-primary focus:border-primary transition duration-150">
+            
+            <button onclick="startGame()" class="btn btn-primary w-full py-3 text-lg">
+                Bắt Đầu Thi
+            </button>
+            <p class="mt-4 text-sm text-center text-gray-500">Mỗi câu đúng lần đầu được 10 điểm. Cố lên nhé!</p>
+        </div>
+
+        <!-- Màn hình Bài thi -->
+        <div id="quiz-screen" class="w-full max-w-3xl p-6 bg-white rounded-2xl shadow-2xl hidden flex-col">
+            
+            <!-- Thanh thông tin -->
+            <div class="flex justify-between items-center p-4 mb-4 bg-primary text-white rounded-xl shadow-md">
+                <div class="flex-1">
+                    <p class="text-sm">Thí sinh:</p>
+                    <p id="display-player-name" class="font-bold text-lg"></p>
+                </div>
+                <div class="text-right">
+                    <p id="display-score" class="font-bold text-3xl">0</p>
+                    <p class="text-sm">Điểm</p>
+                </div>
+                <div class="ml-6 text-center">
+                    <p id="display-progress" class="font-bold text-3xl">0/0</p>
+                    <p class="text-sm">Câu hỏi</p>
+                </div>
+            </div>
+
+            <!-- Khu vực câu hỏi -->
+            <div id="question-area" class="space-y-6">
+                <h2 id="question-title" class="text-xl font-bold text-gray-800"></h2>
+                
+                <!-- Hiển thị nội dung câu hỏi (sẽ được thay đổi bằng JS) -->
+                <div id="question-content" class="min-h-[150px] flex flex-col justify-center">
+                    <!-- Nội dung câu hỏi cụ thể (Sắp xếp/Điền từ/Lựa chọn) sẽ được chèn vào đây -->
+                </div>
+
+                <!-- Khu vực thông báo và giải thích -->
+                <div id="feedback-area" class="hidden">
+                    <p id="feedback-message" class="text-lg font-semibold p-3 mb-3 rounded-xl"></p>
+                    <div id="explanation-box" class="p-4 bg-info/10 border-l-4 border-info rounded-xl text-gray-700">
+                        <p class="font-bold text-info mb-1">Giải thích chi tiết:</p>
+                        <p id="explanation-text"></p>
+                    </div>
+                </div>
+
+                <!-- Các nút điều khiển -->
+                <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+                    <button id="hint-button" class="btn bg-orange-500 hover:bg-orange-600 relative"
+                            onmousedown="showHint()" onmouseup="hideHint()" onmouseleave="hideHint()"
+                            ontouchstart="showHint()" ontouchend="hideHint()" ontouchcancel="hideHint()">
+                        Gợi ý (Giữ)
+                        <div id="hint-text" class="absolute left-0 bottom-full mb-2 p-2 bg-yellow-100 border border-yellow-400 text-yellow-800 text-sm font-normal rounded-xl whitespace-nowrap">
+                            <!-- Đáp án gợi ý sẽ được chèn vào đây -->
+                        </div>
+                    </button>
+
+                    <button id="next-button" class="btn btn-primary" onclick="nextQuestion()" disabled>
+                        Tiếp theo »
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Màn hình chúc mừng -->
+        <div id="complete-screen" class="w-full max-w-lg p-8 bg-white rounded-2xl shadow-2xl text-center hidden transition duration-500 relative overflow-hidden">
+            <div class="confetti-container" id="confetti-canvas"></div> 
+            <h1 class="text-4xl font-extrabold text-success mb-4 animate-bounce">
+                🎉 Chúc Mừng Hoàn Thành! 🎉
+            </h1>
+            <p class="text-2xl text-gray-700 mb-2">Bạn đã hoàn thành bài thi với</p>
+            <p id="final-score" class="text-6xl font-black text-primary mb-6"></p>
+            <p class="text-lg text-gray-600 mb-8">Hãy làm lại để đạt điểm cao hơn nhé!</p>
+
+            <button onclick="resetGame()" class="btn btn-success w-full py-3 text-lg">
+                Làm Lại Bài Thi
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Script chính -->
+    <script>
+        // Cấu trúc dữ liệu bài thi
+        const questions = [
+            // --- PART 1: SẮP XẾP CÂU (42 câu) ---
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["She", "goes", "to school", "every day."],
+                answer: "She goes to school every day.",
+                hint: "Dấu hiệu thì Hiện tại Đơn: 'every day'.",
+                explanation_vi: "Cấu trúc câu khẳng định Hiện tại Đơn: Chủ ngữ (She) + V-es (goes) + to school + Trạng từ chỉ thời gian (every day). **Nghĩa: Cô ấy đi học mỗi ngày.**",
+                explanation_en: "Present Simple structure: Subject + V-s/es + Object. 'Goes' is correct for 'She'."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["Are", "your friends", "playing cards", "now?"],
+                answer: "Are your friends playing cards now?",
+                hint: "Dấu hiệu thì Hiện tại Tiếp diễn: 'now'.",
+                explanation_vi: "Cấu trúc câu hỏi Hiện tại Tiếp diễn: Be (Are) + S (your friends) + V-ing (playing cards) + now? **Nghĩa: Bạn bè của bạn có đang chơi bài không?**",
+                explanation_en: "Present Continuous question structure: Be + S + V-ing + now?"
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["What", "will", "you", "do", "at Christmas?"],
+                answer: "What will you do at Christmas?",
+                hint: "Cấu trúc câu hỏi thì Tương lai Đơn.",
+                explanation_vi: "Cấu trúc câu hỏi thì Tương lai Đơn: What + will + S + V nguyên mẫu + O? **Nghĩa: Bạn sẽ làm gì vào dịp Giáng sinh?**",
+                explanation_en: "Future Simple question structure: What + will + S + V?"
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["It's", "dangerous", "to swim", "there."],
+                answer: "It's dangerous to swim there.",
+                hint: "Cấu trúc: It's + Adj + to V.",
+                explanation_vi: "Cấu trúc: **It's dangerous to V** (Nguy hiểm để làm gì). **Nghĩa: Nguy hiểm khi bơi ở đó.**",
+                explanation_en: "Structure: **It's dangerous to V** (It's dangerous to do something)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["She", "has", "a new", "bicycle."],
+                answer: "She has a new bicycle.",
+                hint: "Động từ sở hữu: 'has' đi với ngôi thứ ba số ít.",
+                explanation_vi: "Động từ **has** đi với ngôi thứ ba số ít 'She'. **Nghĩa: Cô ấy có một chiếc xe đạp mới.**",
+                explanation_en: "The verb **has** is used with the third person singular 'She'."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["Their", "friend", "is", "funny."],
+                answer: "Their friend is funny.",
+                hint: "Cấu trúc: S + be + Adj.",
+                explanation_vi: "**Funny** là tính từ mô tả 'Their friend'. **Nghĩa: Bạn của họ thật vui tính.**",
+                explanation_en: "Funny is an adjective describing 'Their friend'."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["Is", "a dog", "bigger", "than a cat?"],
+                answer: "Is a dog bigger than a cat?",
+                hint: "So sánh hơn với tính từ ngắn.",
+                explanation_vi: "Cấu trúc so sánh hơn: Is + Noun 1 + Adj-er + **than** + Noun 2? **Nghĩa: Một con chó có lớn hơn một con mèo không?**",
+                explanation_en: "Comparative structure: Is + Noun 1 + Adj-er + **than** + Noun 2?"
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["Linh", "is", "my mother's", "English teacher."],
+                answer: "Linh is my mother's English teacher.",
+                hint: "Sở hữu cách.",
+                explanation_vi: "**My mother's English teacher** (giáo viên tiếng Anh của mẹ tôi). **Nghĩa: Linh là giáo viên tiếng Anh của mẹ tôi.**",
+                explanation_en: "My mother's English teacher (using the possessive 's)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["My close friend", "likes", "meeting", "new people."],
+                answer: "My close friend likes meeting new people.",
+                hint: "Động từ theo sau 'likes'.",
+                explanation_vi: "Sau động từ **likes** là V-ing (**meeting**). **Nghĩa: Bạn thân của tôi thích gặp gỡ những người mới.**",
+                explanation_en: "The verb **likes** is followed by a V-ing (**meeting**)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["The kids", "are eating", "ice cream."],
+                answer: "The kids are eating ice cream.",
+                hint: "Thì Hiện tại Tiếp diễn.",
+                explanation_vi: "Chủ ngữ số nhiều 'The kids' đi với **are eating** (đang ăn). **Nghĩa: Những đứa trẻ đang ăn kem.**",
+                explanation_en: "Plural subject 'The kids' goes with **are eating** (Present Continuous)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["He", "sometimes", "goes", "swimming."],
+                answer: "He sometimes goes swimming.",
+                hint: "Vị trí trạng từ tần suất: trước động từ thường.",
+                explanation_vi: "Trạng từ tần suất **sometimes** đứng trước động từ thường **goes**. **Nghĩa: Anh ấy thỉnh thoảng đi bơi.**",
+                explanation_en: "Adverb of frequency **sometimes** comes before the main verb **goes**."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["There", "isn't", "any snow", "on the road."],
+                answer: "There isn't any snow on the road.",
+                hint: "Cấu trúc: There is/are (dùng isn't cho danh từ không đếm được).",
+                explanation_vi: "Dùng **isn't** (số ít) vì 'snow' là danh từ không đếm được. **Any** dùng trong câu phủ định. **Nghĩa: Không có tuyết trên đường.**",
+                explanation_en: "Use **isn't** for the uncountable noun 'snow'. **Any** is used in the negative sentence."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["Linh", "is", "a nice girl", "with long", "black hair."],
+                answer: "Linh is a nice girl with long black hair.",
+                hint: "Giới từ mô tả đặc điểm.",
+                explanation_vi: "Sử dụng giới từ **with** để mô tả một đặc điểm ngoại hình. **Nghĩa: Linh là một cô gái tốt bụng với mái tóc đen dài.**",
+                explanation_en: "Use the preposition **with** to describe a physical feature."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["Nam", "lives", "in the suburbs", "of Da Nang", "City."],
+                answer: "Nam lives in the suburbs of Da Nang City.",
+                hint: "Cụm từ chỉ địa điểm: 'in the suburbs of'.",
+                explanation_vi: "**In the suburbs of** (ở vùng ngoại ô của) + tên địa danh. **Nghĩa: Nam sống ở vùng ngoại ô thành phố Đà Nẵng.**",
+                explanation_en: "**In the suburbs of** + place name."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["She's", "not", "talking", "to a foreigner", "now."],
+                answer: "She's not talking to a foreigner now.",
+                hint: "Thì Hiện tại Tiếp diễn, phủ định.",
+                explanation_vi: "Cấu trúc phủ định Hiện tại Tiếp diễn: S + be + **not + V-ing**. **Nghĩa: Hiện tại cô ấy không đang nói chuyện với người nước ngoài.**",
+                explanation_en: "Negative Present Continuous structure: S + be + **not + V-ing**."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["Is the Nile", "the longest river", "in the world?"],
+                answer: "Is the Nile the longest river in the world?",
+                hint: "Cấu trúc so sánh nhất.",
+                explanation_vi: "Cấu trúc câu hỏi so sánh nhất: Is + Noun + **the longest** + Noun phrase? **Nghĩa: Sông Nile có phải là con sông dài nhất thế giới không?**",
+                explanation_en: "Superlative question structure: Is + Noun + **the longest** + Noun phrase?"
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["These are", "my classmates.", "His name", "is Minh."],
+                answer: "These are my classmates. His name is Minh.",
+                hint: "Chia thành hai câu đơn: giới thiệu và nêu tên.",
+                explanation_vi: "Câu 1: **These are my classmates** (Đây là các bạn cùng lớp của tôi). Câu 2: **His name is Minh** (Tên cậu ấy là Minh).",
+                explanation_en: "Sentence 1: **These are my classmates**. Sentence 2: **His name is Minh**."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["My brother", "doesn't play", "computer games", "on weekdays."],
+                answer: "My brother doesn't play computer games on weekdays.",
+                hint: "Hiện tại Đơn, phủ định.",
+                explanation_vi: "Phủ định Hiện tại Đơn: S + **doesn't + V nguyên mẫu**. **Nghĩa: Anh trai tôi không chơi trò chơi máy tính vào các ngày trong tuần.**",
+                explanation_en: "Negative Present Simple: S + **doesn't + bare V**."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["My friends", "are playing", "table tennis", "in the gym."],
+                answer: "My friends are playing table tennis in the gym.",
+                hint: "Thì Hiện tại Tiếp diễn và giới từ chỉ nơi chốn.",
+                explanation_vi: "Chủ ngữ số nhiều 'My friends' đi với **are playing**. **Nghĩa: Bạn bè tôi đang chơi bóng bàn trong phòng tập thể dục.**",
+                explanation_en: "Plural subject 'My friends' goes with **are playing**."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["The children", "are singing", "a song."],
+                answer: "The children are singing a song.",
+                hint: "Thì Hiện tại Tiếp diễn.",
+                explanation_vi: "Chủ ngữ số nhiều 'The children' đi với **are singing**. **Nghĩa: Bọn trẻ đang hát một bài hát.**",
+                explanation_en: "Plural subject 'The children' goes with **are singing**."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["She", "sometimes", "plays", "the piano."],
+                answer: "She sometimes plays the piano.",
+                hint: "Vị trí trạng từ tần suất.",
+                explanation_vi: "Trạng từ tần suất **sometimes** đứng trước động từ thường **plays**. **Nghĩa: Cô ấy thỉnh thoảng chơi piano.**",
+                explanation_en: "Adverb of frequency **sometimes** comes before the main verb **plays**."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["My mother", "rarely", "goes", "to work", "late."],
+                answer: "My mother rarely goes to work late.",
+                hint: "Trạng từ tần suất: 'rarely' đứng trước động từ thường.",
+                explanation_vi: "Trạng từ tần suất **rarely** đứng giữa chủ ngữ và động từ. **Nghĩa: Mẹ tôi hiếm khi đi làm muộn.**",
+                explanation_en: "Adverb of frequency **rarely** comes between the subject and the verb."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["She", "likes", "drawing", "pictures."],
+                answer: "She likes drawing pictures.",
+                hint: "Động từ theo sau 'likes'.",
+                explanation_vi: "Sau động từ **likes** là V-ing (**drawing**). **Nghĩa: Cô ấy thích vẽ tranh.**",
+                explanation_en: "The verb **likes** is followed by a V-ing (**drawing**)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["Why", "does she want", "to go", "to the department store?"],
+                answer: "Why does she want to go to the department store?",
+                hint: "Cấu trúc câu hỏi Wh-question Hiện tại Đơn.",
+                explanation_vi: "Cấu trúc: **Why + does + S + V nguyên mẫu + to V...?** **Nghĩa: Tại sao cô ấy muốn đến cửa hàng bách hóa?**",
+                explanation_en: "Structure: **Why + does + S + V nguyên mẫu + to V...?**"
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["What", "does", "your sister", "look like?"],
+                answer: "What does your sister look like?",
+                hint: "Cụm từ: 'look like' (trông như thế nào).",
+                explanation_vi: "Cấu trúc hỏi ngoại hình: **What + does + S + look like?** **Nghĩa: Chị gái của bạn trông như thế nào?**",
+                explanation_en: "Question structure for appearance: **What + does + S + look like?**"
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["I", "live in", "an apartment", "with my parents."],
+                answer: "I live in an apartment with my parents.",
+                hint: "Giới từ chỉ nơi ở: 'live in'.",
+                explanation_vi: "**Live in** + Noun (sống trong một nơi). **Nghĩa: Tôi sống trong một căn hộ với bố mẹ.**",
+                explanation_en: "**Live in** + Noun (live in a place)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["Would you", "like", "some water,", "Minh?"],
+                answer: "Would you like some water, Minh?",
+                hint: "Cụm từ: 'Would you like' (mời ai đó).",
+                explanation_vi: "**Would you like** + Noun (Mời/đề nghị). **Nghĩa: Minh, bạn có muốn uống chút nước không?**",
+                explanation_en: "**Would you like** + Noun (Offer/invitation)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["We", "must", "brush our teeth", "before", "going to bed."],
+                answer: "We must brush our teeth before going to bed.",
+                hint: "Động từ sau 'must' và sau 'before'.",
+                explanation_vi: "Sau **must** là V nguyên mẫu; sau giới từ **before** là V-ing. **Nghĩa: Chúng ta phải đánh răng trước khi đi ngủ.**",
+                explanation_en: "After **must** is bare V; after the preposition **before** is V-ing."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["Tourists", "can visit", "fishing villages", "in Phu Quoc."],
+                answer: "Tourists can visit fishing villages in Phu Quoc.",
+                hint: "Động từ khuyết thiếu: 'can'.",
+                explanation_vi: "Sau **can** (có thể) là động từ nguyên mẫu **visit**. **Nghĩa: Du khách có thể ghé thăm các làng chài ở Phú Quốc.**",
+                explanation_en: "After **can** is the bare verb **visit**."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["There is", "a lake", "behind", "the hospital."],
+                answer: "There is a lake behind the hospital.",
+                hint: "Cấu trúc: There is/are và giới từ chỉ vị trí 'behind'.",
+                explanation_vi: "**There is** + Noun (có một cái gì). **Behind** chỉ vị trí. **Nghĩa: Có một cái hồ phía sau bệnh viện.**",
+                explanation_en: "**There is** + Noun. **Behind** indicates position."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["He's", "fat", "with", "black eyes."],
+                answer: "He's fat with black eyes.",
+                hint: "Mô tả ngoại hình: 'with' đi với đặc điểm bộ phận cơ thể.",
+                explanation_vi: "Cấu trúc: S + be + Adj + **with** + Noun. **Nghĩa: Anh ấy mập với đôi mắt đen.**",
+                explanation_en: "Structure: S + be + Adj + **with** + Noun (describing appearance)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["There's a lot", "of different food", "and we often eat", "vegetarian food."],
+                answer: "There's a lot of different food and we often eat vegetarian food.",
+                hint: "Nối hai mệnh đề bằng 'and'.",
+                explanation_vi: "Mệnh đề 1: Có nhiều loại thức ăn khác nhau. Mệnh đề 2: Chúng tôi thường ăn thức ăn chay. Nối bằng **and**. **Nghĩa: Có nhiều loại thức ăn khác nhau và chúng tôi thường ăn thức ăn chay.**",
+                explanation_en: "Clause 1: There's a lot of different food. Clause 2: We often eat vegetarian food. Joined by **and**."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["You mustn't", "pick up flowers", "in the school", "garden."],
+                answer: "You mustn't pick up flowers in the school garden.",
+                hint: "Động từ khuyết thiếu chỉ sự cấm đoán: 'mustn't'.",
+                explanation_vi: "**Mustn't** + V nguyên mẫu (Không được làm gì). **Nghĩa: Bạn không được hái hoa trong vườn trường.**",
+                explanation_en: "**Mustn't** + bare V (Prohibition)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["I think", "you should", "tidy your", "bedroom now."],
+                answer: "I think you should tidy your bedroom now.",
+                hint: "Cấu trúc khuyên bảo: 'should' + V nguyên mẫu.",
+                explanation_vi: "**Should** + V nguyên mẫu (Nên làm gì). **Nghĩa: Tôi nghĩ bây giờ bạn nên dọn dẹp phòng ngủ.**",
+                explanation_en: "**Should** + bare V (Suggestion/advice)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["How about", "meeting", "in the canteen", "for some tea?"],
+                answer: "How about meeting in the canteen for some tea?",
+                hint: "Cụm từ: 'How about' + V-ing.",
+                explanation_vi: "**How about** + V-ing (Đề xuất, rủ rê). **Nghĩa: Gặp nhau ở căng tin uống trà nhé?**",
+                explanation_en: "**How about** + V-ing (Making a suggestion)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["I", "am not joining", "the competition."],
+                answer: "I am not joining the competition.",
+                hint: "Thì Hiện tại Tiếp diễn, phủ định.",
+                explanation_vi: "S + **am not joining** (Tôi không đang/sẽ tham gia). **Nghĩa: Tôi sẽ không tham gia cuộc thi.**",
+                explanation_en: "S + **am not joining** (Negative Present Continuous/Arrangement)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["Which character", "do you like", "the best", "in this story?"],
+                answer: "Which character do you like the best in this story?",
+                hint: "Cấu trúc câu hỏi Wh-question.",
+                explanation_vi: "**Which character** (Nhân vật nào) + do/does + S + V? **Nghĩa: Bạn thích nhân vật nào nhất trong câu chuyện này?**",
+                explanation_en: "**Which character** + do/does + S + V?"
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["We", "are going", "to the art gallery", "now."],
+                answer: "We are going to the art gallery now.",
+                hint: "Thì Hiện tại Tiếp diễn, dấu hiệu 'now'.",
+                explanation_vi: "S + **are going** (đang đi) + to + place. **Nghĩa: Bây giờ chúng tôi đang đi đến phòng trưng bày nghệ thuật.**",
+                explanation_en: "S + **are going** + to + place."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["You should", "eat", "vegetables and fruit", "every day."],
+                answer: "You should eat vegetables and fruit every day.",
+                hint: "Cấu trúc khuyên bảo: 'should'.",
+                explanation_vi: "**Should** + V nguyên mẫu (Nên ăn). **Nghĩa: Bạn nên ăn rau và trái cây mỗi ngày.**",
+                explanation_en: "**Should** + bare V (Should eat)."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["My grandmother", "is sitting", "on the armchair", "near the fireplace."],
+                answer: "My grandmother is sitting on the armchair near the fireplace.",
+                hint: "Thì Hiện tại Tiếp diễn và giới từ chỉ vị trí.",
+                explanation_vi: "S + **is sitting** (đang ngồi) + **on** (trên) + **near** (gần). **Nghĩa: Bà tôi đang ngồi trên ghế bành gần lò sưởi.**",
+                explanation_en: "S + **is sitting** + **on** + **near**."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["It takes me", "ten minutes", "to walk", "to school", "every morning."],
+                answer: "It takes me ten minutes to walk to school every morning.",
+                hint: "Cấu trúc: It takes sb time to V.",
+                explanation_vi: "**It takes me ten minutes to walk** (Mất 10 phút để đi bộ). **Nghĩa: Mất mười phút để tôi đi bộ đến trường mỗi sáng.**",
+                explanation_en: "Structure: **It takes sb time to V**."
+            },
+            {
+                type: 'rearrange', title: 'Sắp xếp câu:',
+                words: ["She is", "watching", "her favourite cartoon", "at present."],
+                answer: "She is watching her favourite cartoon at present.",
+                hint: "Thì Hiện tại Tiếp diễn, dấu hiệu 'at present'.",
+                explanation_vi: "S + **is watching** (đang xem). **Nghĩa: Hiện tại cô ấy đang xem bộ phim hoạt hình yêu thích của mình.**",
+                explanation_en: "S + **is watching** (Present Continuous)."
+            },
+
+            // --- PART 2: ĐIỀN TỪ (FILL-IN-THE-BLANK) ---
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "He often _____ volleyball after school.",
+                answer: "plays", multiple_answers: ["plays"],
+                hint: "Hiện tại Đơn, ngôi thứ ba số ít.",
+                explanation_vi: "Chủ ngữ 'He' (số ít) $\rightarrow$ V + 's'/'es'. **Nghĩa của câu: Anh ấy thường chơi bóng chuyền sau giờ học.**",
+                explanation_en: "Subject 'He' (singular) $\rightarrow$ V + 's'/'es'."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "The garden is _____ the house.",
+                answer: "behind", multiple_answers: ["behind", "in front of", "near", "next to"],
+                hint: "Giới từ chỉ vị trí.",
+                explanation_vi: "Giới từ chỉ vị trí đều hợp lý về mặt ngữ pháp. **Nghĩa của câu: Khu vườn ở phía sau ngôi nhà.**",
+                explanation_en: "A preposition of place is needed here. **behind** is a plausible answer."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "She lives _____ a small house on King Street.",
+                answer: "in", multiple_answers: ["in"],
+                hint: "Giới từ đi với nơi ở (trong).",
+                explanation_vi: "**In** (trong) dùng với 'a small house'. **Nghĩa của câu: Cô ấy sống trong một ngôi nhà nhỏ trên phố King.**",
+                explanation_en: "**In** is used for living inside a house."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "It's _____ in summer.",
+                answer: "hot", multiple_answers: ["hot", "sunny"],
+                hint: "Tính từ mô tả thời tiết mùa hè.",
+                explanation_vi: "Thời tiết thường **hot** (nóng) hoặc **sunny** (nắng) vào mùa hè. **Nghĩa của câu: Trời nóng vào mùa hè.**",
+                explanation_en: "The weather is usually **hot** or **sunny** in summer."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Traveling _____ is more interesting.",
+                answer: "alone", multiple_answers: ["alone", "abroad", "cheaply"],
+                hint: "Trạng từ chỉ cách thức. (Ví dụ: một mình)",
+                explanation_vi: "Từ cần điền là trạng từ. **Nghĩa của câu: Du lịch một mình thì thú vị hơn.**",
+                explanation_en: "The missing word is an adverb, such as **alone** or **abroad**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "My mother helps me with my History _____.",
+                answer: "homework", multiple_answers: ["homework", "project"],
+                hint: "Cụm danh từ: Bài tập về nhà.",
+                explanation_vi: "**History homework** (bài tập về nhà Lịch sử) hoặc **project** (dự án). **Nghĩa của câu: Mẹ tôi giúp tôi làm bài tập Lịch sử.**",
+                explanation_en: "**History homework** or **project** is the missing noun."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Thank you very much _____ your letter.",
+                answer: "for", multiple_answers: ["for"],
+                hint: "Giới từ đi với 'thank you'.",
+                explanation_vi: "**Thank you for** (Cảm ơn vì). **Nghĩa của câu: Cảm ơn bạn rất nhiều vì lá thư của bạn.**",
+                explanation_en: "**Thank you for** is the correct prepositional phrase."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "The students _____ doing morning exercises.",
+                answer: "are", multiple_answers: ["are"],
+                hint: "Hiện tại Tiếp diễn, động từ 'to be' số nhiều.",
+                explanation_vi: "Chủ ngữ 'The students' (số nhiều) $\rightarrow$ **are**. **Nghĩa của câu: Các học sinh đang tập thể dục buổi sáng.**",
+                explanation_en: "Plural subject $\rightarrow$ **are** (Present Continuous)."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Do you have any pictures _____ your bedroom?",
+                answer: "in", multiple_answers: ["in", "on"],
+                hint: "Giới từ chỉ vị trí (trong/trên).",
+                explanation_vi: "**In** your bedroom (trong phòng) hoặc **on** the wall (trên tường). **Nghĩa của câu: Bạn có bức tranh nào trong phòng ngủ không?**",
+                explanation_en: "**In** is the most common preposition here."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "They _____ their homework at the moment.",
+                answer: "are doing", multiple_answers: ["are doing"],
+                hint: "Hiện tại Tiếp diễn, dấu hiệu 'at the moment'.",
+                explanation_vi: "S số nhiều $\rightarrow$ **are doing**. **Nghĩa của câu: Họ đang làm bài tập về nhà ngay lúc này.**",
+                explanation_en: "Plural subject $\rightarrow$ **are doing** (Present Continuous)."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "How about playing _____?",
+                answer: "chess", multiple_answers: ["chess", "games", "football", "badminton"],
+                hint: "Danh từ chỉ trò chơi/thể thao.",
+                explanation_vi: "Từ cần điền là một trò chơi/thể thao. **Nghĩa của câu: Chơi cờ vua thì sao?**",
+                explanation_en: "The missing word is a game or sport (e.g., **chess**)."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "There aren't any pillows _____ the bed.",
+                answer: "on", multiple_answers: ["on", "under"],
+                hint: "Giới từ chỉ vị trí (trên/dưới).",
+                explanation_vi: "**On** the bed (trên giường). **Nghĩa của câu: Không có cái gối nào trên giường.**",
+                explanation_en: "**On** is the correct preposition of place."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Jane and her friend _____ walking to the supermarket near her house.",
+                answer: "are", multiple_answers: ["are"],
+                hint: "Hiện tại Tiếp diễn, động từ 'to be' số nhiều.",
+                explanation_vi: "Chủ ngữ số nhiều $\rightarrow$ **are**. **Nghĩa của câu: Jane và bạn cô ấy đang đi bộ đến siêu thị gần nhà.**",
+                explanation_en: "Plural subject $\rightarrow$ **are** (Present Continuous)."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "The moon _____ around the Earth.",
+                answer: "moves", multiple_answers: ["moves", "revolves"],
+                hint: "Hiện tại Đơn (sự thật hiển nhiên), ngôi thứ ba số ít.",
+                explanation_vi: "Mặt trăng (số ít) $\rightarrow$ **moves** / **revolves**. **Nghĩa của câu: Mặt trăng chuyển động quanh Trái Đất.**",
+                explanation_en: "Singular subject $\rightarrow$ V-s/es."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "What time does the boy _____?",
+                answer: "wake up", multiple_answers: ["wake up", "get up"],
+                hint: "Động từ sau 'does' (nguyên mẫu).",
+                explanation_vi: "Cụm động từ: **wake up** (thức dậy) / **get up** (ngủ dậy). **Nghĩa của câu: Cậu bé thức dậy lúc mấy giờ?**",
+                explanation_en: "The missing verb phrase is **wake up** / **get up**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "She _____ her homework.",
+                answer: "does", multiple_answers: ["does", "finishes"],
+                hint: "Hiện tại Đơn (thói quen), ngôi thứ ba số ít.",
+                explanation_vi: "Chủ ngữ 'She' $\rightarrow$ **does**. **Nghĩa của câu: Cô ấy làm bài tập về nhà.**",
+                explanation_en: "Singular subject 'She' $\rightarrow$ **does**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "She is playing the _____ at present.",
+                answer: "piano", multiple_answers: ["piano", "guitar", "violin"],
+                hint: "Tên một loại nhạc cụ.",
+                explanation_vi: "Tên một loại nhạc cụ đi với 'the' $\rightarrow$ **piano**. **Nghĩa của câu: Hiện tại cô ấy đang chơi đàn piano.**",
+                explanation_en: "The name of a musical instrument."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Don't _____ the tree!",
+                answer: "climb", multiple_answers: ["climb", "cut", "touch"],
+                hint: "Động từ nguyên mẫu sau 'Don't'.",
+                explanation_vi: "**Don't climb** (Đừng trèo) là một lời cấm phổ biến. **Nghĩa của câu: Đừng trèo cây!**",
+                explanation_en: "**Don't** + bare V."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Is there a police _____ near the bank?",
+                answer: "station", multiple_answers: ["station"],
+                hint: "Cụm danh từ: Đồn cảnh sát.",
+                explanation_vi: "**Police station** (đồn cảnh sát). **Nghĩa của câu: Có đồn cảnh sát nào gần ngân hàng không?**",
+                explanation_en: "**Police station** is the correct compound noun."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "My brother likes playing _____ after school.",
+                answer: "football", multiple_answers: ["football", "games", "basketball", "volleyball"],
+                hint: "Danh từ chỉ trò chơi/thể thao.",
+                explanation_vi: "Môn thể thao: **football**. **Nghĩa của câu: Anh trai tôi thích chơi bóng đá sau giờ học.**",
+                explanation_en: "The missing word is a sport (e.g., **football**)."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Take the second turning _____ the left.",
+                answer: "on", multiple_answers: ["on"],
+                hint: "Cụm từ chỉ hướng rẽ.",
+                explanation_vi: "**On** the left (ở bên trái). **Nghĩa của câu: Rẽ ở ngã rẽ thứ hai về phía bên trái.**",
+                explanation_en: "**On** the left is the correct phrase."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "She _____ forgets my birthday.",
+                answer: "never", multiple_answers: ["never", "rarely"],
+                hint: "Trạng từ tần suất (nghĩa phủ định).",
+                explanation_vi: "**Never** (không bao giờ) hoặc **rarely** (hiếm khi) đều có nghĩa phủ định. **Nghĩa của câu: Cô ấy không bao giờ quên sinh nhật tôi.**",
+                explanation_en: "An adverb of frequency with a negative meaning (e.g., **never**)."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Let me _____ a try.",
+                answer: "have", multiple_answers: ["have", "take"],
+                hint: "Cụm động từ: thử.",
+                explanation_vi: "**Have/take** a try (thử một lần). **Nghĩa của câu: Hãy để tôi thử một lần.**",
+                explanation_en: "**Have/take** a try is the correct idiom."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "This puzzle is _____ than I think.",
+                answer: "harder", multiple_answers: ["harder", "easier"],
+                hint: "So sánh hơn: Adj-er.",
+                explanation_vi: "**Harder** (khó hơn) hoặc **easier** (dễ hơn) đều đúng ngữ pháp. **Nghĩa của câu: Câu đố này khó hơn tôi nghĩ.**",
+                explanation_en: "Comparative adjective: **harder** or **easier**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "What do you know about Da Nang _____?",
+                answer: "City", multiple_answers: ["City"],
+                hint: "Tên địa danh.",
+                explanation_vi: "**Da Nang City** (Thành phố Đà Nẵng). **Nghĩa của câu: Bạn biết gì về thành phố Đà Nẵng?**",
+                explanation_en: "**Da Nang City** is the correct noun."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Give the correct form of the word WORK in the following sentence: My mother _____ (WORK) eight hours a day.",
+                answer: "works", multiple_answers: ["works"],
+                hint: "Hiện tại Đơn, ngôi thứ ba số ít.",
+                explanation_vi: "Chủ ngữ 'My mother' (số ít) $\rightarrow$ **works**. **Nghĩa của câu: Mẹ tôi làm việc tám giờ một ngày.**",
+                explanation_en: "Singular subject 'My mother' $\rightarrow$ **works**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Give the correct form of the word STUDY in the following sentence: She is _____ (STUDY) English at the moment.",
+                answer: "studying", multiple_answers: ["studying"],
+                hint: "Hiện tại Tiếp diễn: be + V-ing.",
+                explanation_vi: "Cấu trúc Hiện tại Tiếp diễn: is + **studying**. **Nghĩa của câu: Cô ấy đang học tiếng Anh ngay lúc này.**",
+                explanation_en: "Present Continuous structure: is + **studying**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Thirty plus twenty makes _____.",
+                answer: "fifty", multiple_answers: ["fifty"],
+                hint: "Phép cộng: 30 + 20.",
+                explanation_vi: "30 + 20 = **50**. **Nghĩa của câu: Ba mươi cộng hai mươi là năm mươi.**",
+                explanation_en: "30 + 20 = **fifty**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Mountains are higher _____ hills.",
+                answer: "than", multiple_answers: ["than"],
+                hint: "So sánh hơn.",
+                explanation_vi: "Cấu trúc so sánh hơn: higher **than**. **Nghĩa của câu: Núi cao hơn đồi.**",
+                explanation_en: "Comparative structure: higher **than**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Eighteen divided by two makes _____.",
+                answer: "nine", multiple_answers: ["nine"],
+                hint: "Phép chia: 18 / 2.",
+                explanation_vi: "18 chia cho 2 bằng **9**. **Nghĩa của câu: Mười tám chia hai là chín.**",
+                explanation_en: "18 divided by 2 equals **nine**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Can you tell us the way _____ the bus stop?",
+                answer: "to", multiple_answers: ["to"],
+                hint: "Chỉ đường: the way to.",
+                explanation_vi: "Cụm từ: the way **to** (đường đến). **Nghĩa của câu: Bạn có thể chỉ cho chúng tôi đường đến trạm xe buýt được không?**",
+                explanation_en: "The phrase: the way **to**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "The train is moving _____ quickly.",
+                answer: "very", multiple_answers: ["very", "too", "so"],
+                hint: "Trạng từ bổ nghĩa cho 'quickly'.",
+                explanation_vi: "Sử dụng **very/too/so** để bổ nghĩa cho trạng từ 'quickly'. **Nghĩa của câu: Tàu hỏa đang di chuyển rất nhanh.**",
+                explanation_en: "Use **very/too/so** to modify the adverb 'quickly'."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "After that, I have _____ and then clean my house.",
+                answer: "lunch", multiple_answers: ["lunch", "dinner", "breakfast", "a shower"],
+                hint: "Hoạt động hàng ngày: ví dụ ăn trưa.",
+                explanation_vi: "Hoạt động hàng ngày: **lunch** (ăn trưa), **dinner** (ăn tối) đều hợp lý. **Nghĩa của câu: Sau đó, tôi ăn trưa và sau đó dọn dẹp nhà.**",
+                explanation_en: "Daily activity, e.g., **lunch** or **dinner**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "The dishwasher of my family is very _____",
+                answer: "useful", multiple_answers: ["useful", "good", "expensive"],
+                hint: "Tính từ mô tả máy rửa chén.",
+                explanation_vi: "Máy rửa chén thường được mô tả là **useful** (hữu ích). **Nghĩa của câu: Máy rửa chén của gia đình tôi rất hữu ích.**",
+                explanation_en: "An adjective describing the dishwasher, e.g., **useful**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "I _____ how to ride a horse.",
+                answer: "know", multiple_answers: ["know", "don't know"],
+                hint: "Động từ: biết/không biết.",
+                explanation_vi: "Sử dụng **know** (biết) hoặc **don't know** (không biết). **Nghĩa của câu: Tôi biết cách cưỡi ngựa.**",
+                explanation_en: "The verb **know** or **don't know**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "My cousin is the best football player in his _____.",
+                answer: "team", multiple_answers: ["team", "class", "school"],
+                hint: "Danh từ chỉ nhóm/đội.",
+                explanation_vi: "Cụm từ: in his **team** (trong đội của anh ấy). **Nghĩa của câu: Anh họ tôi là cầu thủ bóng đá giỏi nhất trong đội.**",
+                explanation_en: "The missing noun is a group, e.g., **team**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "He goes to the _____ every Saturday.",
+                answer: "gym", multiple_answers: ["gym", "market", "cinema", "park"],
+                hint: "Địa điểm thường đến cuối tuần.",
+                explanation_vi: "Địa điểm thường đến vào cuối tuần. **Nghĩa của câu: Anh ấy đến phòng tập gym mỗi thứ Bảy.**",
+                explanation_en: "A place people usually go on weekends."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Vietnamese use _____ to eat.",
+                answer: "chopsticks", multiple_answers: ["chopsticks", "spoon"],
+                hint: "Dụng cụ ăn uống truyền thống.",
+                explanation_vi: "Người Việt Nam thường dùng **chopsticks** (đũa) để ăn. **Nghĩa của câu: Người Việt Nam dùng đũa để ăn.**",
+                explanation_en: "Traditional Vietnamese eating utensil: **chopsticks**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "He's listening to music at the _____.",
+                answer: "moment", multiple_answers: ["moment"],
+                hint: "Dấu hiệu thì Hiện tại Tiếp diễn: at the...",
+                explanation_vi: "Cụm từ: at the **moment** (ngay lúc này). **Nghĩa của câu: Anh ấy đang nghe nhạc ngay lúc này.**",
+                explanation_en: "The phrase: at the **moment**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "He must go to the department store at 5 _____.",
+                answer: "p.m.", multiple_answers: ["p.m.", "pm", "a.m.", "am"],
+                explanation_vi: "Thời gian: **p.m.** hoặc **a.m.** **Nghĩa của câu: Anh ấy phải đến cửa hàng bách hóa lúc 5 giờ chiều.**",
+                explanation_en: "Time: **p.m.** or **a.m.**"
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "You _____ eat in class.",
+                answer: "mustn't", multiple_answers: ["mustn't", "shouldn't", "can't"],
+                hint: "Động từ khuyết thiếu: cấm/không nên.",
+                explanation_vi: "**Mustn't** (cấm) hoặc **shouldn't** (không nên). **Nghĩa của câu: Bạn không được ăn trong lớp.**",
+                explanation_en: "Modal verb for prohibition or advice: **mustn't** or **shouldn't**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Keep quiet! She _____.",
+                answer: "is sleeping", multiple_answers: ["is sleeping"],
+                hint: "Thì Hiện tại Tiếp diễn, hành động đang xảy ra.",
+                explanation_vi: "Dấu hiệu 'Keep quiet!' dùng Hiện tại Tiếp diễn: **is sleeping**. **Nghĩa của câu: Giữ yên lặng! Cô ấy đang ngủ.**",
+                explanation_en: "The cue 'Keep quiet!' requires Present Continuous: **is sleeping**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "I have new books, and we have new _____ to study.",
+                answer: "things", multiple_answers: ["things", "subjects"],
+                hint: "Danh từ số nhiều chỉ vật/môn học.",
+                explanation_vi: "Danh từ số nhiều: **things** (thứ/vật) hoặc **subjects** (môn học). **Nghĩa của câu: Tôi có sách mới, và chúng tôi có những thứ mới để học.**",
+                explanation_en: "Plural noun, e.g., **things** or **subjects**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "Fifty divided by ten makes _____.",
+                answer: "five", multiple_answers: ["five"],
+                hint: "Phép chia: 50 / 10.",
+                explanation_vi: "50 chia cho 10 bằng **5**. **Nghĩa của câu: Năm mươi chia mười bằng năm.**",
+                explanation_en: "50 divided by 10 equals **five**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "There are any flowers in the living _____, Anna?",
+                answer: "room", multiple_answers: ["room"],
+                hint: "Cụm danh từ: phòng khách.",
+                explanation_vi: "**Living room** (phòng khách). **Nghĩa của câu: Có bất kỳ bông hoa nào trong phòng khách không, Anna?**",
+                explanation_en: "**Living room** is the correct compound noun."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "It's quiet at _____.",
+                answer: "night", multiple_answers: ["night"],
+                hint: "Cụm từ chỉ thời gian: vào ban đêm.",
+                explanation_vi: "Cụm từ: at **night** (vào ban đêm). **Nghĩa của câu: Trời yên tĩnh vào ban đêm.**",
+                explanation_en: "The phrase: at **night**."
+            },
+            {
+                type: 'fill', title: 'Điền từ:',
+                text: "The opposite of RIGHT is _____.",
+                answer: "left", multiple_answers: ["left", "wrong"],
+                hint: "Từ trái nghĩa (vị trí/đúng-sai).",
+                explanation_vi: "Trái nghĩa của 'right' (phải) là **left** (trái), hoặc 'right' (đúng) là **wrong** (sai). **Nghĩa của câu: Từ trái nghĩa với RIGHT (phải) là LEFT (trái).**",
+                explanation_en: "The opposite of 'right' is **left** or **wrong**."
+            },
+
+            // --- PART 3: CÂU HỎI LỰA CHỌN (MULTIPLE CHOICE) ---
+            {
+                type: 'mc', title: 'Phát âm khác:',
+                question: "Find the word which has a different sound in the underlined part: $\\text{h}$",
+                options: ["hour", "honey", "hotel", "hard"],
+                correct: "hour",
+                hint: "Chú ý âm câm.",
+                explanation_vi: "Từ **hour** có 'h' câm (/ˈaʊər/). Các từ còn lại có âm 'h' hữu thanh (/h/). **Nghĩa của câu: Tìm từ có âm 'h' khác biệt: hour.**",
+                explanation_en: "The letter 'h' in **hour** is silent (//ˈaʊər/). The other words have the /h/ sound."
+            },
+            {
+                type: 'mc', title: 'So sánh hơn:',
+                question: "Is the new school _____ than the old one?",
+                options: ["bigger", "big", "biger", "more big"],
+                correct: "bigger",
+                hint: "So sánh hơn với tính từ ngắn, phải gấp đôi phụ âm cuối.",
+                explanation_vi: "Tính từ ngắn 'big' dùng so sánh hơn là **bigger** (gấp đôi phụ âm cuối 'g'). **Nghĩa của câu: Ngôi trường mới có lớn hơn ngôi trường cũ không?**",
+                explanation_en: "The comparative form of the short adjective 'big' is **bigger** (doubling the consonant 'g')."
+            },
+            {
+                type: 'mc', title: 'Giới từ chỉ địa điểm:',
+                question: "Choose the correct sentence.",
+                options: [
+                    "My house is from 255 Tran Phu street.",
+                    "My house is at 255 Tran Phu street.",
+                    "My house is on 255 Tran Phu street.",
+                    "My house is in 255 Tran Phu street."
+                ],
+                correct: "My house is at 255 Tran Phu street.",
+                hint: "Giới từ dùng cho địa chỉ cụ thể.",
+                explanation_vi: "Giới từ **at** được dùng cho địa chỉ nhà/số nhà cụ thể. **Nghĩa của câu: Nhà tôi ở số 255 đường Trần Phú.**",
+                explanation_en: "The preposition **at** is used for a specific address/house number."
+            },
+            {
+                type: 'mc', title: 'Động từ phù hợp:',
+                question: "They _____ karate very well.",
+                options: ["study", "do", "play", "have"],
+                correct: "do",
+                hint: "Động từ đi với môn thể thao/võ thuật.",
+                explanation_vi: "Động từ **do** được dùng với môn võ thuật/thể thao cá nhân như 'karate'. **Nghĩa của câu: Họ tập karate rất giỏi.**",
+                explanation_en: "The verb **do** is used with martial arts or individual sports like 'karate'."
+            },
+            {
+                type: 'mc', title: 'Toán học:',
+                question: "10 centimetres = _____",
+                options: ["10 kilometres", "100 millimetres", "1 metre", "10 decimetres"],
+                correct: "100 millimetres",
+                hint: "Quy đổi đơn vị đo chiều dài.",
+                explanation_vi: "1 centimetre = 10 milimetres, nên 10cm = $10 \\times 10 = 100$ milimetres. **Nghĩa của câu: 10 centimet bằng 100 milimet.**",
+                explanation_en: "1 centimetre = 10 milimetres, so 10cm = 100 milimetres."
+            },
+            {
+                type: 'mc', title: 'Địa điểm:',
+                question: "Where can we get a plaster?",
+                options: ["Beauty salon", "Hairdresser's", "Pharmacy", "Bus stop"],
+                correct: "Pharmacy",
+                hint: "Nơi bán thuốc và dụng cụ y tế.",
+                explanation_vi: "Bạn có thể mua băng dán (plaster) tại **Pharmacy** (hiệu thuốc). **Nghĩa của câu: Chúng ta có thể mua băng dán ở đâu? - Ở hiệu thuốc.**",
+                explanation_en: "You can buy a plaster at a **Pharmacy**."
+            },
+            {
+                type: 'mc', title: 'Phát âm khác:',
+                question: "Find the word which has a different sound in the underlined part: $\\text{u}$",
+                options: ["Sunday", "true", "uncle", "luck"],
+                correct: "true",
+                hint: "Chú ý âm 'u' dài.",
+                explanation_vi: "**true** đọc là /uː/. **Sunday, uncle, luck** đều đọc là /ʌ/. **Nghĩa của câu: Tìm từ có âm 'u' khác biệt: true.**",
+                explanation_en: "**true** is pronounced /uː/. The others are pronounced /ʌ/."
+            },
+            {
+                type: 'mc', title: 'Thì Hiện tại Tiếp diễn:',
+                question: "Don't make noise! Anna _____",
+                options: ["sleeps", "are sleeping", "slept", "is sleeping"],
+                correct: "is sleeping",
+                hint: "Cụm từ 'Don't make noise!' là dấu hiệu của thì nào?",
+                explanation_vi: "Dấu hiệu 'Don't make noise!' (Đừng làm ồn!) yêu cầu dùng Hiện tại Tiếp diễn: **is sleeping**. **Nghĩa của câu: Đừng làm ồn! Anna đang ngủ.**",
+                explanation_en: "The phrase 'Don't make noise!' indicates the Present Continuous tense: **is sleeping**."
+            },
+            {
+                type: 'mc', title: 'Cụm từ:',
+                question: "What does she do in her _____ time?",
+                options: ["free", "do", "play", "is playing"],
+                correct: "free",
+                hint: "Danh từ 'time' cần tính từ đi kèm.",
+                explanation_vi: "Cụm từ đúng là **free time** (thời gian rảnh). **Nghĩa của câu: Cô ấy làm gì vào thời gian rảnh?**",
+                explanation_en: "The correct phrase is **free time**."
+            },
+            {
+                type: 'mc', title: 'Thì Hiện tại Đơn:',
+                question: "She _____ Music on Wednesdays and Fridays.",
+                options: ["have", "is having", "has", "having"],
+                correct: "has",
+                hint: "Ngôi thứ ba số ít trong Hiện tại Đơn.",
+                explanation_vi: "Lịch học (thói quen) dùng Hiện tại Đơn. Chủ ngữ 'She' $\rightarrow$ **has**. **Nghĩa của câu: Cô ấy học Nhạc vào thứ Tư và thứ Sáu.**",
+                explanation_en: "Schedule (habit) uses Present Simple. Subject 'She' $\rightarrow$ **has**."
+            },
+            {
+                type: 'mc', title: 'Phát âm khác:',
+                question: "Choose the word whose underlined part is pronounced differently from the others: $\\text{-s}$",
+                options: ["books", "lights", "pencils", "lamps"],
+                correct: "pencils",
+                hint: "Quy tắc phát âm đuôi -s.",
+                explanation_vi: "Đuôi **-s** trong **pencils** đọc là /z/. Các từ còn lại đọc là /s/. **Nghĩa của câu: Tìm từ có phát âm đuôi -s khác biệt: pencils.**",
+                explanation_en: "The ending **-s** in **pencils** is pronounced /z/. The others are pronounced /s/."
+            },
+            {
+                type: 'mc', title: 'So sánh hơn:',
+                question: "Jane is _____ than her sister.",
+                options: ["beautifuler", "more beautiful", "beautifull", "more beautifuller"],
+                correct: "more beautiful",
+                hint: "So sánh hơn với tính từ dài.",
+                explanation_vi: "Tính từ dài 'beautiful' dùng so sánh hơn là **more beautiful**. **Nghĩa của câu: Jane đẹp hơn chị gái cô ấy.**",
+                explanation_en: "The comparative form of the long adjective 'beautiful' is **more beautiful**."
+            },
+            {
+                type: 'mc', title: 'Câu phủ định Hiện tại Đơn:',
+                question: "Choose the correct sentence.",
+                options: [
+                    "I don't have a television in my bedroom.",
+                    "I not have a television in my bedroom.",
+                    "I don't has television in my bedroom.",
+                    "I has a television in my bedroom."
+                ],
+                correct: "I don't have a television in my bedroom.",
+                hint: "Trợ động từ và động từ chính trong câu phủ định.",
+                explanation_vi: "Câu phủ định Hiện tại Đơn: S + **don't/doesn't + V nguyên mẫu**. 'I' đi với **don't have**. **Nghĩa của câu: Tôi không có TV trong phòng ngủ.**",
+                explanation_en: "Negative Present Simple: S + **don't/doesn't + bare V**. 'I' uses **don't have**."
+            },
+            {
+                type: 'mc', title: 'Địa lý Việt Nam:',
+                question: "Which province/city is in the Central Vietnam?",
+                options: ["Vinh Phuc", "Kien Giang", "Quang Ninh", "Binh Dinh"],
+                correct: "Binh Dinh",
+                hint: "Tìm tỉnh thuộc miền Trung.",
+                explanation_vi: "**Bình Định** là một tỉnh thuộc miền Trung Việt Nam. **Nghĩa của câu: Tỉnh/thành phố nào ở miền Trung Việt Nam? - Bình Định.**",
+                explanation_en: "**Binh Dinh** is a province located in Central Vietnam."
+            },
+            {
+                type: 'mc', title: 'Trọng âm khác:',
+                question: "Find the word that differs from the rest in the position of the main stress.",
+                options: ["careful", "children", "suburb", "activity"],
+                correct: "activity",
+                hint: "Tìm từ có trọng âm khác biệt.",
+                explanation_vi: "**careful** (âm 1), **children** (âm 1), **suburb** (âm 1). **activity** (âm 2). **Nghĩa của câu: Tìm từ có trọng âm khác biệt: activity.**",
+                explanation_en: "**activity** has the stress on the second syllable, while the others are on the first."
+            },
+            {
+                type: 'mc', title: 'Địa lý Việt Nam:',
+                question: "Which province/city is next to the sea?",
+                options: ["Lai Chau", "Phu Yen", "Lam Dong", "Binh Duong"],
+                correct: "Phu Yen",
+                hint: "Tỉnh giáp biển.",
+                explanation_vi: "**Phú Yên** là tỉnh giáp biển (duyên hải Nam Trung Bộ). **Nghĩa của câu: Tỉnh/thành phố nào giáp biển? - Phú Yên.**",
+                explanation_en: "**Phu Yen** is a coastal province. The others are not."
+            },
+            {
+                type: 'mc', title: 'Câu phủ định Hiện tại Đơn:',
+                question: "He _____ to go to the swimming pool.",
+                options: ["don't want", "isn't want", "doesn't wants", "doesn't want"],
+                correct: "doesn't want",
+                hint: "Trợ động từ và động từ chính đi với 'He'.",
+                explanation_vi: "Chủ ngữ 'He' dùng trợ động từ **doesn't** và động từ chính **want** (nguyên mẫu). **Nghĩa của câu: Anh ấy không muốn đi đến hồ bơi.**",
+                explanation_en: "Subject 'He' uses auxiliary verb **doesn't** and the main verb **want** (bare form)."
+            },
+            {
+                type: 'mc', title: 'Giới từ chỉ vị trí:',
+                question: "The lake is _____ the building.",
+                options: ["next to", "behind", "near", "in front of"],
+                correct: "behind",
+                hint: "Chọn giới từ chính xác.",
+                explanation_vi: "Tất cả các đáp án đều là giới từ chỉ vị trí hợp lý về mặt ngữ pháp. Chọn **behind** theo đề bài. **Nghĩa của câu: Hồ nước ở phía sau tòa nhà.**",
+                explanation_en: "All options are grammatically correct prepositions of place. **Behind** is selected as the designated answer."
+            },
+            {
+                type: 'mc', title: 'Từ vựng (Đồ vật trong nhà):',
+                question: "There is a _____ in the kitchen.",
+                options: ["computer", "bath", "bed", "cooker"],
+                correct: "cooker",
+                hint: "Đồ vật thường có trong bếp.",
+                explanation_vi: "**Cooker** (nồi/bếp nấu) là đồ vật thường có trong bếp. **Nghĩa của câu: Có một cái bếp nấu trong nhà bếp.**",
+                explanation_en: "A **cooker** is an appliance commonly found in the kitchen."
+            },
+            {
+                type: 'mc', title: 'Số đếm:',
+                question: "How many bedrooms are there in the house?",
+                options: ["5 bedrooms", "4 bedrooms", "2 bedrooms", "3 bedrooms"],
+                correct: "3 bedrooms",
+                hint: "Cần chọn một số lượng cụ thể (đáp án mặc định là D).",
+                explanation_vi: "Câu hỏi này thiếu ngữ cảnh. Chọn **3 bedrooms** theo đáp án gốc của đề (mang tính minh họa). **Nghĩa của câu: Có bao nhiêu phòng ngủ trong ngôi nhà? - 3 phòng ngủ.**",
+                explanation_en: "This question lacks context; **3 bedrooms** is chosen as the default answer for structural purposes."
+            },
+            {
+                type: 'mc', title: 'Trọng âm khác:',
+                question: "Find the word that differs from the rest in the position of the main stress.",
+                options: ["brother", "doctor", "sister", "sixteen"],
+                correct: "sixteen",
+                hint: "Chú ý trọng âm của số đếm.",
+                explanation_vi: "**brother, doctor, sister** (âm 1). **sixteen** (âm 2, với 'teen'). **Nghĩa của câu: Tìm từ có trọng âm khác biệt: sixteen.**",
+                explanation_en: "**sixteen** has the stress on the second syllable. The others are on the first."
+            },
+            {
+                type: 'mc', title: 'Địa lý:',
+                question: "Which ocean is larger, the Pacific Ocean or the Arctic Ocean?",
+                options: ["Pacific", "Atlantic", "Indian", "Southern"],
+                correct: "Pacific",
+                hint: "Đại dương lớn nhất thế giới.",
+                explanation_vi: "Thái Bình Dương (**Pacific**) là đại dương lớn nhất thế giới. **Nghĩa của câu: Đại dương nào lớn hơn, Thái Bình Dương hay Bắc Băng Dương? - Thái Bình Dương.**",
+                explanation_en: "The Pacific Ocean is the largest in the world."
+            },
+            {
+                type: 'mc', title: 'Viết lại câu (So sánh):',
+                question: "Choose the sentence that is closest in meaning to the following sentence: The market is older than the shopping centre.",
+                options: [
+                    "The shopping centre newer than the market.",
+                    "The shopping centre is new than the market.",
+                    "The shopping centre is newer than the market.",
+                    "The shopping centre is new than the market."
+                ],
+                correct: "The shopping centre is newer than the market.",
+                hint: "Older $\\Leftrightarrow$ Newer.",
+                explanation_vi: "Nếu chợ **older** (cũ hơn) trung tâm mua sắm, thì trung tâm mua sắm **newer** (mới hơn) chợ. Cấu trúc đúng là **is newer than**. **Nghĩa của câu: Chợ cũ hơn trung tâm mua sắm. (Tương đương) Trung tâm mua sắm mới hơn chợ.**",
+                explanation_en: "If the market is older, the shopping centre is **newer**. The correct structure is **is newer than**."
+            },
+            {
+                type: 'mc', title: 'Sửa lỗi:',
+                question: "Choose the part that needs correction in the following sentence: My friend is listens to music now.",
+                options: ["to", "listens", "music", "is"],
+                correct: "listens",
+                hint: "Lỗi thì Hiện tại Tiếp diễn.",
+                explanation_vi: "Trong Hiện tại Tiếp diễn, sau 'is' phải là V-ing. Sửa **listens** thành **listening**. **Nghĩa của câu: Câu My friend is listens to music now sai ở từ listens.**",
+                explanation_en: "In the Present Continuous tense, the verb should be V-ing. Change **listens** to **listening**."
+            },
+            {
+                type: 'mc', title: 'Thời gian:',
+                question: "When is the best time to open the store?",
+                options: ["It's from 8 a.m. to 9 p.m.", "It's from 9 a.m. to 8 p.m.", "It's from 9 a.m. to 9 p.m.", "It's from 8 a.m. to 8 p.m."],
+                correct: "It's from 9 a.m. to 9 p.m.",
+                hint: "Cần chọn một khung giờ hợp lý (Mang tính minh họa).",
+                explanation_vi: "Câu hỏi thiếu ngữ cảnh về giờ mở cửa. **9 a.m. to 9 p.m.** là một khung giờ hoạt động bán lẻ phổ biến. **Nghĩa của câu: Thời điểm tốt nhất để mở cửa hàng là khi nào? - Từ 9 giờ sáng đến 9 giờ tối.**",
+                explanation_en: "Lacking context, **9 a.m. to 9 p.m.** is a common retail operating hour (illustrative answer)."
+            },
+            {
+                type: 'mc', title: 'Địa lý:',
+                question: "Which country is NOT in Asia?",
+                options: ["Indonesia", "Singapore", "Germany", "Thailand"],
+                correct: "Germany",
+                hint: "Quốc gia thuộc châu Âu.",
+                explanation_vi: "**Germany** (Đức) nằm ở Châu Âu, không phải Châu Á. **Nghĩa của câu: Quốc gia nào không thuộc châu Á? - Đức.**",
+                explanation_en: "**Germany** is located in Europe, not Asia."
+            },
+            {
+                type: 'mc', title: 'Thời gian:',
+                question: "Note: The library opens at 9 o'clock in the morning and closes at 5 o'clock in the afternoon. What time does the library open?",
+                options: ["5 a.m", "9 a.m", "9 p.m", "5 p.m"],
+                correct: "9 a.m",
+                hint: "Giờ mở cửa buổi sáng.",
+                explanation_vi: "Thư viện mở cửa lúc 9 giờ sáng, tức là **9 a.m**. **Nghĩa của câu: Thư viện mở cửa lúc mấy giờ? - 9 giờ sáng.**",
+                explanation_en: "The library opens at 9 o'clock in the morning, which is **9 a.m**."
+            },
+            {
+                type: 'mc', title: 'Chia động từ:',
+                question: "Which verb adds 'es' in the third person?",
+                options: ["walk", "see", "miss", "take"],
+                correct: "miss",
+                hint: "Động từ kết thúc bằng sibilants (âm xì).",
+                explanation_vi: "Động từ kết thúc bằng -ss (như **miss**) sẽ thêm **-es** ở ngôi thứ ba số ít (misses). **Nghĩa của câu: Động từ nào thêm 'es' ở ngôi thứ ba số ít? - miss.**",
+                explanation_en: "Verbs ending in -ss (like **miss**) add **-es** in the third person singular (misses)."
+            },
+            {
+                type: 'mc', title: 'Từ trái nghĩa:',
+                question: "Find the word(s) has the OPPOSITE meaning to the underlined part: I think museum is **boring**. I like historic places but not museum.",
+                options: ["shy", "sporty", "interesting", "curious"],
+                correct: "interesting",
+                hint: "Trái nghĩa với 'boring' (nhàm chán).",
+                explanation_vi: "Trái nghĩa với **boring** (nhàm chán) là **interesting** (thú vị). **Nghĩa của câu: Tìm từ trái nghĩa với boring: interesting.**",
+                explanation_en: "The opposite of **boring** is **interesting**."
+            },
+            {
+                type: 'mc', title: 'Từ vựng (Đồ vật):',
+                question: "What is Phong reading?",
+                options: ["14 books", "Screen", "Magazine", "Books"],
+                correct: "Books",
+                hint: "Chỉ một danh từ chung (Mang tính minh họa).",
+                explanation_vi: "Câu hỏi này thiếu ngữ cảnh. Chọn **Books** là danh từ chung để minh họa hành động 'reading'. **Nghĩa của câu: Phong đang đọc gì? - Sách.**",
+                explanation_en: "Lacking context, **Books** is chosen as the general noun to illustrate the action 'reading' (illustrative answer)."
+            }
+        ];
+
+        // --- Biến Trạng thái Trò chơi ---
+        let playerName = '';
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let questionsAttempted = 0;
+        let isCorrectlyAnswered = false; // Theo dõi xem câu này đã được trả lời đúng lần đầu chưa
+
+        // --- DOM Elements ---
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const completeScreen = document.getElementById('complete-screen');
+        const playerNameInput = document.getElementById('player-name-input');
+        const displayPlayerName = document.getElementById('display-player-name');
+        const displayScore = document.getElementById('display-score');
+        const displayProgress = document.getElementById('display-progress');
+        const questionTitle = document.getElementById('question-title');
+        const questionContent = document.getElementById('question-content');
+        const feedbackArea = document.getElementById('feedback-area');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const explanationBox = document.getElementById('explanation-box');
+        const explanationText = document.getElementById('explanation-text');
+        const nextButton = document.getElementById('next-button');
+        const hintButton = document.getElementById('hint-button');
+        const hintText = document.getElementById('hint-text');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const totalQuestions = questions.length;
+        const toastContainer = document.getElementById('toast-container'); // NEW: Toast container
+        
+        // Cập nhật số câu hỏi trên màn hình bắt đầu
+        document.querySelector('#start-screen p').textContent = `Nhập tên của bạn để bắt đầu luyện tập (tổng ${totalQuestions} câu).`;
+
+
+        // --- Custom Toast Logic (thay thế alert() bị cấm) ---
+        function showToast(message, type = 'error', duration = 3000) {
+            const toast = document.createElement('div');
+            toast.className = `toast text-white ${type === 'error' ? 'bg-error' : 'bg-info'}`;
+            toast.innerHTML = `<span class="font-bold">${type === 'error' ? 'Lỗi: ' : 'Thông báo: '}</span> ${message}`;
+            
+            toastContainer.prepend(toast); // Add new toasts to the top
+            
+            // Show toast
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 50);
+
+            // Hide and remove toast
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.classList.add('opacity-0', 'scale-y-0'); // Add a shrinking effect
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, duration);
+        }
+
+        // --- Logic Game Flow ---
+
+        function startGame() {
+            playerName = playerNameInput.value.trim();
+            if (playerName.length < 2) {
+                // Sử dụng Toast mới
+                showToast('Vui lòng nhập tên của bạn để bắt đầu.', 'error');
+                playerNameInput.classList.add('border-error', 'ring-2', 'ring-error');
+                setTimeout(() => { playerNameInput.classList.remove('border-error', 'ring-2', 'ring-error'); }, 1000);
+                return;
+            }
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            quizScreen.classList.add('flex');
+            
+            displayPlayerName.textContent = playerName;
+            
+            // Xáo trộn câu hỏi
+            questions.sort(() => Math.random() - 0.5);
+
+            currentQuestionIndex = 0;
+            score = 0;
+            questionsAttempted = 0;
+            updateScoreDisplay();
+            loadQuestion(currentQuestionIndex);
+        }
+
+        function resetGame() {
+            completeScreen.classList.add('hidden');
+            // Xóa pháo hoa
+            const confettiCanvas = document.getElementById('confetti-canvas');
+            confettiCanvas.innerHTML = ''; 
+            
+            // Quay lại màn hình bắt đầu
+            startScreen.classList.remove('hidden');
+            playerNameInput.value = '';
+        }
+
+        function updateScoreDisplay() {
+            displayScore.textContent = score;
+            // Hiển thị số câu hỏi hiện tại (1-based) / Tổng số câu.
+            const currentQNum = currentQuestionIndex < totalQuestions ? currentQuestionIndex + 1 : totalQuestions;
+            displayProgress.textContent = `${currentQNum}/${totalQuestions}`;
+        }
+
+        function loadQuestion(index) {
+            if (index >= totalQuestions) {
+                showCompleteScreen();
+                return;
+            }
+
+            // Reset trạng thái
+            isCorrectlyAnswered = false;
+            feedbackArea.classList.add('hidden');
+            feedbackMessage.textContent = '';
+            explanationBox.classList.add('hidden');
+            nextButton.disabled = true;
+            nextButton.classList.remove('btn-success');
+            nextButton.textContent = 'Tiếp theo »';
+
+            const q = questions[index];
+            questionTitle.textContent = `Câu ${index + 1}/${totalQuestions} - ${q.title}`;
+            hintText.textContent = `Gợi ý: ${q.hint}`;
+
+            // Tạo nội dung câu hỏi
+            let contentHTML = '';
+            
+            if (q.type === 'rearrange') {
+                const shuffledWords = [...q.words].sort(() => Math.random() - 0.5);
+                contentHTML = `
+                    <p class="text-lg text-gray-700 font-medium mb-4">Sắp xếp các từ sau bằng cách nhấp vào các nút:</p>
+                    <div id="rearrange-words" class="flex flex-wrap gap-2 mb-4 p-4 border border-dashed border-gray-300 rounded-xl bg-gray-50">
+                        ${shuffledWords.map(word => `<button class="word-btn btn bg-info text-sm py-1 px-3" data-word="${word.trim()}" onclick="selectWord(this)">${word.trim()}</button>`).join('')}
+                    </div>
+                    <p class="text-lg font-semibold text-primary mb-2">Câu trả lời của bạn:</p>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="rearrange-input" readonly placeholder="Câu trả lời sẽ hiện ra khi bạn nhấp vào từ..." 
+                            class="flex-grow px-4 py-2 border border-gray-300 rounded-xl focus:ring-primary focus:border-primary transition duration-150">
+                        <button onclick="resetRearrange()" class="btn bg-gray-500 hover:bg-gray-600 text-sm">Xóa</button>
+                        <button onclick="checkRearrangeAnswer()" class="btn btn-primary text-sm">Kiểm tra</button>
+                    </div>
+                `;
+            } else if (q.type === 'fill') {
+                const textWithBlank = q.text.replace('_____', '<span class="text-xl font-bold text-red-500">_______</span>');
+                contentHTML = `
+                    <p class="text-xl font-medium text-gray-800 p-4 border border-gray-300 rounded-xl bg-gray-50">${textWithBlank}</p>
+                    <p class="text-lg font-semibold text-primary mb-2 mt-4">Điền từ:</p>
+                    <input type="text" id="fill-input" placeholder="Nhập từ còn thiếu..." 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-primary focus:border-primary transition duration-150" onkeyup="if(event.key === 'Enter') checkFillAnswer()">
+                    <button onclick="checkFillAnswer()" class="btn btn-primary w-full mt-2">Kiểm tra</button>
+                `;
+            } else if (q.type === 'mc') {
+                // Randomize options for MC
+                const shuffledOptions = q.options.map(option => ({ text: option, correct: option === q.correct }));
+                shuffledOptions.sort(() => Math.random() - 0.5);
+
+                const optionsHTML = shuffledOptions.map((option, i) => `
+                    <div class="mc-option-container">
+                        <input type="radio" id="mc-option-${index}-${i}" name="mc-choice" value="${option.text}" class="hidden" 
+                            onclick="checkMCAnswer(this)">
+                        <label for="mc-option-${index}-${i}" class="block p-3 border border-gray-300 rounded-xl cursor-pointer hover:bg-primary/10 transition duration-150 text-gray-800">
+                            <span class="font-bold mr-2 text-primary">${String.fromCharCode(65 + i)}.</span> ${option.text}
+                        </label>
+                    </div>
+                `).join('');
+                contentHTML = `
+                    <p class="text-xl font-medium text-gray-800 p-4 border border-gray-300 rounded-xl bg-gray-50">${q.question}</p>
+                    <div class="mt-4 space-y-2" id="mc-options">${optionsHTML}</div>
+                `;
+            }
+
+            questionContent.innerHTML = contentHTML;
+            updateScoreDisplay();
+        }
+
+        // --- Logic Câu trả lời ---
+
+        function handleCorrectAnswer(correctAnswer, explanation_vi, explanation_en) {
+            if (!isCorrectlyAnswered) {
+                score += 10;
+                questionsAttempted++;
+                isCorrectlyAnswered = true; // Đánh dấu là đã trả lời đúng lần đầu chưa
+            }
+            
+            updateScoreDisplay();
+
+            feedbackArea.classList.remove('hidden');
+            feedbackMessage.className = 'text-lg font-semibold p-3 mb-3 rounded-xl bg-success text-white';
+            feedbackMessage.textContent = '✅ Chính xác! (Đã làm: ' + questionsAttempted + ')';
+
+            // Đã cập nhật để hiển thị cả nghĩa của câu đúng.
+            explanationText.innerHTML = `
+                <p class="mb-2"><strong>Đáp án đúng:</strong> ${correctAnswer}</p>
+                <p class="mb-2"><strong>Nghĩa của câu:</strong> ${explanation_vi.match(/Nghĩa của câu: (.*?)(?:\.|\.$|$)/)?.[1]?.trim() || explanation_vi.match(/Nghĩa của câu: (.*)/)?.[1]?.trim() || '(Không có sẵn)'}</p>
+                <p class="mb-2"><strong>Giải thích:</strong> ${explanation_vi.replace(/Nghĩa của câu:.*?\.?$/, '').trim()}</p>
+                <p><strong>Explanation (English):</strong> ${explanation_en}</p>
+            `;
+            explanationBox.classList.remove('hidden');
+
+            nextButton.disabled = false;
+            nextButton.classList.add('btn-success');
+            nextButton.textContent = 'Tuyệt vời! Tiếp theo »';
+            disableCurrentQuestion();
+        }
+
+        function handleWrongAnswer() {
+            feedbackArea.classList.remove('hidden');
+            feedbackMessage.className = 'text-lg font-semibold p-3 mb-3 rounded-xl bg-error text-white';
+            feedbackMessage.textContent = '❌ Sai rồi. Hãy thử lại!';
+            explanationBox.classList.add('hidden');
+        }
+
+        function disableCurrentQuestion() {
+            const currentQ = questions[currentQuestionIndex];
+            if (currentQ.type === 'mc') {
+                document.querySelectorAll('#mc-options input').forEach(input => input.disabled = true);
+                document.querySelectorAll('#mc-options label').forEach(label => label.classList.remove('hover:bg-primary/10', 'cursor-pointer'));
+            } else if (currentQ.type === 'fill') {
+                document.getElementById('fill-input').disabled = true;
+                document.querySelector('#question-content button:last-child').disabled = true; // Disable Check button
+            } else if (currentQ.type === 'rearrange') {
+                document.getElementById('rearrange-input').disabled = true;
+                document.querySelectorAll('.word-btn').forEach(btn => btn.disabled = true);
+                document.querySelector('#question-content .flex.items-center button:last-child').disabled = true; // Disable Check button
+                document.querySelector('#question-content .flex.items-center button:nth-child(2)').disabled = true; // Disable Reset button
+            }
+        }
+
+        // Kiểm tra câu hỏi trắc nghiệm (Multiple Choice)
+        function checkMCAnswer(radio) {
+            const q = questions[currentQuestionIndex];
+            const correctAnswer = q.correct; // Lấy đáp án đúng từ mảng questions
+            
+            const selectedAnswer = radio.value;
+
+            // Đánh dấu đáp án đúng/sai trên UI
+            document.querySelectorAll('#mc-options input').forEach(input => {
+                const label = input.nextElementSibling;
+                label.classList.remove('bg-success/20', 'bg-error/20');
+                if (input.value === correctAnswer) {
+                    label.classList.add('bg-success/20', 'border-success', 'font-bold');
+                } else if (input.checked) {
+                    label.classList.add('bg-error/20', 'border-error', 'font-bold');
+                }
+            });
+
+            if (selectedAnswer === correctAnswer) {
+                handleCorrectAnswer(selectedAnswer, q.explanation_vi, q.explanation_en);
+            } else {
+                handleWrongAnswer();
+            }
+        }
+
+        // Kiểm tra câu hỏi điền từ (Fill-in-the-blank)
+        function checkFillAnswer() {
+            const q = questions[currentQuestionIndex];
+            
+            // Xử lý nhiều đáp án (nếu có)
+            const correctAnswers = q.multiple_answers || [q.answer];
+            
+            const input = document.getElementById('fill-input');
+            const userAnswer = input.value.trim().toLowerCase().replace(/[.,!?:;]$/, ''); // Loại bỏ dấu câu cuối
+            
+            let isCorrect = false;
+            let actualCorrectAnswer = q.answer; // Lấy đáp án chuẩn để hiển thị
+
+            // Kiểm tra câu trả lời có khớp với bất kỳ đáp án nào trong mảng không
+            for (const ans of correctAnswers) {
+                if (userAnswer === ans.trim().toLowerCase().replace(/[.,!?:;]$/, '')) {
+                    isCorrect = true;
+                    break;
+                }
+            }
+
+            if (isCorrect) {
+                input.classList.remove('border-error', 'bg-error/5');
+                input.classList.add('border-success', 'bg-success/5');
+                handleCorrectAnswer(actualCorrectAnswer, q.explanation_vi, q.explanation_en);
+            } else {
+                input.classList.remove('border-success', 'bg-success/5');
+                input.classList.add('border-error', 'bg-error/5');
+                handleWrongAnswer();
+            }
+        }
+
+        // Logic xử lý khi click vào từ
+        function selectWord(button) {
+            const word = button.getAttribute('data-word');
+            const input = document.getElementById('rearrange-input');
+            
+            // Nếu câu hỏi đã trả lời đúng, không cho phép tương tác
+            if (input.disabled) return; 
+
+            // Thêm từ vào ô nhập liệu và thêm khoảng trắng
+            input.value += (word + ' ');
+            
+            // Vô hiệu hóa nút để tránh nhấp đúp
+            button.disabled = true;
+            button.classList.remove('bg-info', 'hover:bg-primary-dark');
+            button.classList.add('bg-gray-400', 'cursor-not-allowed');
+            
+            // Ẩn phản hồi nếu có sai sót trước đó
+            feedbackArea.classList.add('hidden');
+        }
+
+        // Logic xóa câu trả lời sắp xếp
+        function resetRearrange() {
+            const input = document.getElementById('rearrange-input');
+            input.value = '';
+            document.querySelectorAll('.word-btn').forEach(btn => {
+                btn.disabled = false;
+                btn.classList.add('bg-info', 'hover:bg-primary-dark');
+                btn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            });
+            // Ẩn thông báo phản hồi khi người chơi reset
+            feedbackArea.classList.add('hidden');
+            // Reset viền input
+            input.classList.remove('border-error', 'bg-error/5', 'border-success', 'bg-success/5');
+        }
+
+        // Kiểm tra câu hỏi sắp xếp (Rearrange)
+        function checkRearrangeAnswer() {
+            const q = questions[currentQuestionIndex];
+            const correctAnswer = q.answer; // Lấy đáp án đúng từ mảng questions
+            
+            const input = document.getElementById('rearrange-input');
+            // Loại bỏ khoảng trắng thừa, dấu chấm/phẩy cuối câu và chuyển thành chữ thường
+            const userAnswer = input.value.trim().toLowerCase().replace(/[.,!?:;]$/, '');
+            const correctLower = correctAnswer.trim().toLowerCase().replace(/[.,!?:;]$/, '');
+            
+            // So sánh chuỗi đã chuẩn hóa (loại bỏ dấu câu cuối, chữ hoa, khoảng trắng thừa)
+            const normalize = (str) => str.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+            const userAnswerNormalize = normalize(userAnswer);
+            const correctLowerNormalize = normalize(correctLower);
+
+            if (userAnswerNormalize === correctLowerNormalize) {
+                input.classList.remove('border-error', 'bg-error/5');
+                input.classList.add('border-success', 'bg-success/5');
+                // Sửa lại input hiển thị đáp án đúng (có dấu chấm nếu cần)
+                input.value = correctAnswer; 
+                handleCorrectAnswer(correctAnswer, q.explanation_vi, q.explanation_en);
+            } else {
+                input.classList.remove('border-success', 'bg-success/5');
+                input.classList.add('border-error', 'bg-error/5');
+                handleWrongAnswer();
+            }
+        }
+
+        // --- Logic Gợi ý ---
+        function showHint() {
+            hintButton.classList.add('show-hint');
+        }
+
+        function hideHint() {
+            hintButton.classList.remove('show-hint');
+        }
+
+        // --- Logic Chuyển câu hỏi ---
+        function nextQuestion() {
+            currentQuestionIndex++;
+            loadQuestion(currentQuestionIndex);
+        }
+        
+        // --- Màn hình hoàn thành ---
+        function showCompleteScreen() {
+            quizScreen.classList.add('hidden');
+            completeScreen.classList.remove('hidden');
+            finalScoreDisplay.textContent = `${score} / ${totalQuestions * 10} điểm`;
+            
+            // Kích hoạt pháo hoa (Confetti)
+            triggerConfetti();
+        }
+        
+        // --- Hiệu ứng Pháo hoa (Confetti) ---
+        function triggerConfetti() {
+            const confettiCanvas = document.getElementById('confetti-canvas');
+            confettiCanvas.innerHTML = ''; 
+            const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800', '#ff5722'];
+            const count = 100;
+
+            for (let i = 0; i < count; i++) {
+                const piece = document.createElement('div');
+                piece.style.position = 'absolute';
+                piece.style.width = `${Math.random() * 10 + 5}px`;
+                piece.style.height = `${Math.random() * 10 + 5}px`;
+                piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.left = `${Math.random() * 100}vw`;
+                piece.style.top = `${Math.random() * -100}vh`; 
+                piece.style.opacity = Math.random() + 0.5;
+                piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+                
+                const duration = Math.random() * 3 + 2; 
+                const delay = Math.random() * 0.5;
+                piece.style.animation = `fall ${duration}s ease-in ${delay}s forwards`;
+
+                confettiCanvas.appendChild(piece);
+            }
+
+            if (!document.querySelector('style[data-confetti]')) {
+                const style = document.createElement('style');
+                style.setAttribute('data-confetti', true);
+                style.innerHTML = `
+                    @keyframes fall {
+                        0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+                        100% { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+
+        // --- Khởi tạo ---
+        window.onload = () => {
+             console.log("Ứng dụng tải thành công. Tổng số câu hỏi: ", questions.length);
+        };
+    </script>
+</body>
+</html>
